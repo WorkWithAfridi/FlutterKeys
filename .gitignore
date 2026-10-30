@@ -46,3 +46,6 @@ app.*.map.json
 
 # Local editor settings
 .vscode/
+
+# Kotlin build cache
+/android/.kotlin/
