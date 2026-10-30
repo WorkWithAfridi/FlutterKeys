@@ -1,3 +1,5 @@
+![Understanding Flutter Keys cover](docs/Understanding%20Flutter%20Keys.png)
+
 # Understanding Flutter Keys Beyond the Basics: ValueKey, ObjectKey, UniqueKey, and GlobalKey
 
 _How Flutter manages widget identity, preserves state, and why choosing the wrong key can cause some surprisingly difficult bugs._

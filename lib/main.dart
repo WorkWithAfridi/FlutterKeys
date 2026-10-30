@@ -67,17 +67,27 @@ class HomePage extends StatelessWidget {
   );
 }
 
+/// A server-backed cart item whose ID survives a model refresh.
+///
+/// In a cart that permits multiple lines for the same product, use a stable
+/// cart-line ID instead so sibling keys remain unique.
 class CartItem {
   const CartItem(this.id, this.name, this.price);
   final String id, name;
   final int price;
 }
 
+/// An unsaved customization session. Its object instance is its identity.
+/// Recreating it, even with the same color, represents a new session.
 class Draft {
   Draft(this.color);
   final String color;
 }
 
+/// Runs the same experiments in either keyed or unkeyed mode.
+///
+/// Each visit creates fresh page state. The unkeyed behavior is intentional:
+/// it makes positional matching visible, rather than modeling a real cart.
 class LabPage extends StatefulWidget {
   const LabPage({super.key, required this.keyed});
   final bool keyed;
@@ -92,6 +102,8 @@ class _LabPageState extends State<LabPage> {
     CartItem('watch-103', 'Minimal Watch', 1899),
   ];
   List<Draft> drafts = [Draft('Red'), Draft('Black')];
+  // Keep these keys in State rather than constructing them during build.
+  // Only replacing previewKey should create a new preview identity.
   Key previewKey = UniqueKey();
   final GlobalKey movingKey = GlobalKey();
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
@@ -113,6 +125,10 @@ class _LabPageState extends State<LabPage> {
                   ? 'ValueKey(product.id) keeps quantity with the product, even when fresh model objects arrive.'
                   : 'Add to the tote, then sort by price. Quantity follows the position because the tiles have no keys.',
             ),
+            // Without a key, same-type tiles are matched by position, so their
+            // local quantities can appear under different products after sorting.
+            // With ValueKey, the stable ID associates each tile with its item.
+            // A key helps reconciliation; it does not persist disposed state.
             ...products.map(
               (p) => CartTile(
                 key: widget.keyed ? ValueKey(p.id) : null,
@@ -131,6 +147,7 @@ class _LabPageState extends State<LabPage> {
                   icon: const Icon(Icons.sort),
                   label: const Text('Sort by price'),
                 ),
+                // Simulate an API refresh: new instances, unchanged IDs.
                 OutlinedButton(
                   onPressed: () => setState(
                     () => products = [
@@ -149,6 +166,9 @@ class _LabPageState extends State<LabPage> {
                   ? 'ObjectKey tracks each draft instance. Replacing an instance starts a new editor.'
                   : 'Add an edit to Red, then swap. The editor state stays at its position.',
             ),
+            // ObjectKey compares object identity, not the fields of a draft.
+            // Swapping the same instances preserves their editors; replacing an
+            // instance gives the keyed editor a new State, even for equal data.
             ...drafts.map(
               (d) =>
                   DraftTile(key: widget.keyed ? ObjectKey(d) : null, draft: d),
@@ -177,6 +197,9 @@ class _LabPageState extends State<LabPage> {
                   ? 'A stored UniqueKey changes only when you start a new preview. A parent rebuild keeps the selection.'
                   : 'Without a new identity, starting a new preview rebuilds the parent but leaves the selection intact.',
             ),
+            // The wrapper provides a stable parent for the preview. A new
+            // UniqueKey replaces its element and resets its local selection;
+            // ordinary parent rebuilds reuse the stored key and preserve it.
             Column(
               children: [ProductPreview(key: widget.keyed ? previewKey : null)],
             ),
@@ -215,6 +238,9 @@ class _LabPageState extends State<LabPage> {
               value: floating,
               onChanged: (v) => setState(() => floating = v),
             ),
+            // Only one slot contains the preview at a time. A GlobalKey lets
+            // Flutter reparent its element between these different parents when
+            // it leaves one and enters the other in the same frame.
             _previewSlot('Main content', !floating),
             const SizedBox(height: 8),
             _previewSlot('Floating panel', floating),
@@ -254,6 +280,9 @@ class _LabPageState extends State<LabPage> {
                         : null,
                   ),
                   const SizedBox(height: 16),
+                  // Builder supplies a context below Form. Form.of can therefore
+                  // validate without a GlobalKey. The keyed branch illustrates
+                  // currentState access, which also works from outside the Form.
                   Builder(
                     builder: (formContext) => FilledButton(
                       onPressed: () {
@@ -321,6 +350,8 @@ class _LabPageState extends State<LabPage> {
   );
 }
 
+/// A cart row with deliberately local quantity, so element reuse is observable.
+/// Production cart quantities generally belong in shared application state.
 class CartTile extends StatefulWidget {
   const CartTile({super.key, required this.product});
   final CartItem product;
@@ -344,6 +375,7 @@ class _CartTileState extends State<CartTile> {
   );
 }
 
+/// An editor whose local edit count makes draft identity visible during swaps.
 class DraftTile extends StatefulWidget {
   const DraftTile({super.key, required this.draft});
   final Draft draft;
@@ -366,6 +398,8 @@ class _DraftTileState extends State<DraftTile> {
   );
 }
 
+/// A small stateful subtree used to demonstrate reset and reparenting.
+/// Its temporary selection is separate from the cart's business data.
 class ProductPreview extends StatefulWidget {
   const ProductPreview({super.key});
   @override
